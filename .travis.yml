@@ -6,4 +6,4 @@ install:
   - pip install -r requirements.txt
 
 script:
-  - pylint users_service run.py
+  - pylint --rcfile=.pylintrc users_service
