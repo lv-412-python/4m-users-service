@@ -1,10 +1,22 @@
 #pylint: disable=cyclic-import
 """Init users service"""
+import unittest
+import coverage
 from flask import Flask
 from flask_restful import Api
 from flask_bcrypt import Bcrypt
 from flask_marshmallow import Marshmallow
 
+COV = coverage.coverage(
+    branch=True,
+    include='users_service/*',
+    omit=[
+        'users_service/tests/*',
+        'users_service/config/*',
+        'users_service/*/__init__.py'
+    ]
+)
+COV.start()
 
 APP = Flask(__name__)
 

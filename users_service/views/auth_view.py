@@ -20,26 +20,26 @@ class RegisterAPI(MethodView):
         post_data = request.get_json()
         user = User.query.filter_by(email=post_data.get('email')).first()
         if not user:
+            user = User(
+                email=post_data.get('email'),
+                password=post_data.get('password'),
+                first_name=post_data.get('first_name'),
+                last_name=post_data.get('last_name')
+            )
             try:
-                user = User(
-                    email=post_data.get('email'),
-                    password=post_data.get('password'),
-                    first_name=post_data.get('first_name'),
-                    last_name=post_data.get('last_name')
-                )
+                DB.session.add(user)
+                DB.session.commit()
             except exc.SQLAlchemyError as error:
                 response_object = {
                     'status': 'fail',
                     'message': str(error)
                 }
-                return make_response(jsonify(response_object)), 401
-            DB.session.add(user)
-            DB.session.commit()
+                return make_response(jsonify(response_object)), 500
             auth_token = user.encode_auth_token(user.user_id)
             response_object = {
                 'status': 'success',
                 'message': 'Successfully registered.',
-                'auth_token': auth_token.decode()
+                'auth_token': auth_token.decode('utf-8')
             }
             return make_response(jsonify(response_object)), 201
         if user.google_id:
@@ -50,7 +50,7 @@ class RegisterAPI(MethodView):
             response_object = {
                 'status': 'success',
                 'message': 'Successfully updated.',
-                'auth_token': auth_token.decode()
+                'auth_token': auth_token.decode('utf-8')
             }
             return make_response(jsonify(response_object)), 201
         response_object = {
@@ -84,7 +84,7 @@ class LoginAPI(MethodView):
             response_object = {
                 'status': 'success',
                 'message': 'Successfully logged in.',
-                'auth_token': auth_token.decode()
+                'auth_token': auth_token.decode('utf-8')
             }
             return make_response(jsonify(response_object)), 201
         response_object = {
@@ -166,7 +166,7 @@ class LogoutAPI(MethodView):
                         'status': 'fail',
                         'message': str(error)
                     }
-                    return make_response(jsonify(response_object)), 200
+                    return make_response(jsonify(response_object)), 500
             else:
                 response_object = {
                     'status': 'fail',

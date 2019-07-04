@@ -12,6 +12,7 @@ cffi==1.12.3
 chardet==3.0.4
 Click==7.0
 colorama==0.4.1
+coverage==4.5.3
 cryptography==2.7
 Flask==1.0.3
 Flask-BabelEx==0.9.3
@@ -22,8 +23,10 @@ flask-marshmallow==0.10.1
 Flask-Migrate==2.5.2
 Flask-Principal==0.4.0
 Flask-RESTful==0.3.7
+Flask-Script==2.0.6
 Flask-Security==3.0.0
 Flask-SQLAlchemy==2.4.0
+Flask-Testing==0.7.1
 Flask-WTF==0.14.2
 google-api-python-client==1.7.9
 google-auth==1.6.3

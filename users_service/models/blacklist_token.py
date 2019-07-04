@@ -3,7 +3,7 @@ import datetime
 from sqlalchemy import Column, Integer, String, DateTime
 from users_service.db import DB
 
-class BlacklistToken(DB.Model):
+class BlacklistToken(DB.Model): #pylint: disable=too-few-public-methods
     """
     Token Model for storing JWT tokens
     """
@@ -16,9 +16,6 @@ class BlacklistToken(DB.Model):
     def __init__(self, token):
         self.token = token
         self.blacklisted_on = datetime.datetime.now()
-
-    def __repr__(self):
-        return '<id: token: {}'.format(self.token)
 
     @staticmethod
     def check_blacklist(auth_token):
