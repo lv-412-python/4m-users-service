@@ -30,11 +30,6 @@ class User(DB.Model, UserMixin):
             password, APP.config.get('BCRYPT_LOG_ROUNDS')
         ).decode()
 
-    def __repr__(self):
-        return f"id = {self.user_id}, email = {self.email}," \
-            f" first_name = {self.first_name}, last_name = {self.last_name}," \
-            f" create_date = {self.create_date}"
-
     @staticmethod
     def encode_auth_token(user_id):
         """
@@ -42,7 +37,7 @@ class User(DB.Model, UserMixin):
         :return: bytes
         """
         payload = {
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, seconds=5000),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, seconds=50),
             'iat': datetime.datetime.utcnow(),
             'sub': user_id
         }
