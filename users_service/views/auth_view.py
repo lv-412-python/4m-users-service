@@ -1,207 +1,132 @@
 """Authentification view"""
-import datetime
-from flask import Blueprint, request, make_response, jsonify
-from flask.views import MethodView
-from sqlalchemy import exc
-from users_service.db import DB
+from flask import Blueprint, jsonify, make_response, request
+from flask_restful import Resource
+from jwt.exceptions import ExpiredSignatureError
+from marshmallow import ValidationError
+from sqlalchemy.exc import DataError, IntegrityError
+from flask_api import status
+from flask_jwt_extended import (
+    create_access_token,
+    get_jwt_identity,
+    jwt_optional,
+    set_access_cookies,
+    unset_jwt_cookies
+)
+from users_service import API
 from users_service import BCRYPT
+from users_service.db import DB
 from users_service.models.users import User
-from users_service.models.blacklist_token import BlacklistToken
+from users_service.serializers.user_schema import UserSchema
 
 AUTH_BLUEPRINT = Blueprint('auth', __name__)
+USER_SCHEMA = UserSchema(strict=True)
 
-
-class RegisterAPI(MethodView):
+class RegisterResource(Resource):
     """
-    User Registration Resource
+    User Registration Resource.
     """
-    def post(self): #pylint: disable=no-self-use
+    def post(self):
         """Post method"""
-        post_data = request.get_json()
-        user = User.query.filter_by(email=post_data.get('email')).first()
-        if not user:
-            user = User(
-                email=post_data.get('email'),
-                password=post_data.get('password'),
-                first_name=post_data.get('first_name'),
-                last_name=post_data.get('last_name')
-            )
-            try:
-                DB.session.add(user)
-                DB.session.commit()
-            except exc.SQLAlchemyError as error:
-                response_object = {
-                    'status': 'fail',
-                    'message': str(error)
-                }
-                return make_response(jsonify(response_object)), 500
-            auth_token = user.encode_auth_token(user.user_id)
-            response_object = {
-                'status': 'success',
-                'message': 'Successfully registered.',
-                'auth_token': auth_token.decode('utf-8')
-            }
-            return make_response(jsonify(response_object)), 201
-        if user.google_id:
-            user.password = post_data.get('password')
-            user.update_date = datetime.datetime.now()
+        try:
+            new_user = USER_SCHEMA.load(request.json).data
+        except ValidationError as error:
+            return jsonify(error.messages), status.HTTP_400_BAD_REQUEST
+        user = User(
+            email=new_user['email'],
+            password=new_user['password'],
+            first_name=new_user['first_name'],
+            last_name=new_user['last_name']
+        )
+        DB.session.add(user)
+        try:
             DB.session.commit()
-            auth_token = user.encode_auth_token(user.user_id)
-            response_object = {
-                'status': 'success',
-                'message': 'Successfully updated.',
-                'auth_token': auth_token.decode('utf-8')
+        except IntegrityError:
+            DB.session.rollback()
+            response = {
+                'error': 'Already exists.'
             }
-            return make_response(jsonify(response_object)), 201
-        response_object = {
-            'status': 'fail',
-            'message': 'User already exists. Please Log in.',
-        }
-        return make_response(jsonify(response_object)), 202
+            return response, status.HTTP_400_BAD_REQUEST
+        access_token = create_access_token(identity=user.email)
+        response_obj = jsonify({
+            'message': 'Successfully registered.'
+        })
+        set_access_cookies(response_obj, access_token)
+        return make_response(response_obj, status.HTTP_201_CREATED)
 
 
-class LoginAPI(MethodView):
+class LoginResource(Resource):
     """
-    User Login Resource
+    User Login Resource.
     """
-    def post(self): #pylint: disable=no-self-use
+    def post(self):
         """Post method"""
-        post_data = request.get_json()
+        try:
+            user_data = USER_SCHEMA.load(request.json).data
+        except ValidationError as error:
+            return jsonify(error.messages), status.HTTP_400_BAD_REQUEST
         try:
             user = User.query.filter_by(
-                email=post_data.get('email')
+                email=user_data['email']
             ).first()
-        except exc.SQLAlchemyError as error:
-            response_object = {
-                'status': 'fail',
-                'message': str(error)
+        except DataError:
+            response_obj = {
+                'error': 'Invalid url.'
             }
-            return make_response(jsonify(response_object)), 500
-        if user and BCRYPT.check_password_hash(
-                user.password, post_data.get('password')
+            return response_obj, status.HTTP_404_NOT_FOUND
+        if BCRYPT.check_password_hash(
+                user.password, user_data['password']
             ):
-            auth_token = user.encode_auth_token(user.user_id)
-            response_object = {
-                'status': 'success',
-                'message': 'Successfully logged in.',
-                'auth_token': auth_token.decode('utf-8')
-            }
-            return make_response(jsonify(response_object)), 201
-        response_object = {
-            'status': 'fail',
-            'message': 'User does not exist.'
+            access_token = create_access_token(identity=user.email)
+            response_obj = jsonify({
+                'message': 'Successfully logged in.'
+            })
+            set_access_cookies(response_obj, access_token)
+            return make_response(response_obj, status.HTTP_201_CREATED)
+        response_obj = {
+            'error': 'Wrong password.'
         }
-        return make_response(jsonify(response_object)), 404
+        return response_obj, status.HTTP_400_BAD_REQUEST
 
 
-
-class UserAPI(MethodView):
+class UserResource(Resource):
     """
-    User Resource
+    User Resource.
     """
-    def get(self): #pylint: disable=no-self-use
+    @jwt_optional
+    def get(self):
         """Get method"""
-        auth_header = request.headers.get('Authorization')
-        if auth_header:
-            try:
-                auth_token = auth_header.split(" ")[1]
-            except IndexError:
-                response_object = {
-                    'status': 'fail',
-                    'message': 'Bearer token malformed.'
-                }
-                return make_response(jsonify(response_object)), 401
-        else:
-            auth_token = ''
-        if auth_token:
-            resp = User.decode_auth_token(auth_token)
-            if not isinstance(resp, str):
-                user = User.query.filter_by(user_id=resp).first()
-                response_object = {
-                    'status': 'success',
-                    'data': {
-                        'user_id': user.user_id,
-                        'email': user.email,
-                        'admin': user.admin
-                    }
-                }
-                return make_response(jsonify(response_object)), 200
-            response_object = {
-                'status': 'fail',
-                'message': resp
+        try:
+            user_email = get_jwt_identity()
+        except ExpiredSignatureError:
+            response_obj = {
+                'error': 'Signature expired. Please, log in again.'
             }
-            return make_response(jsonify(response_object)), 401
-        response_object = {
-            'status': 'fail',
-            'message': 'Provide a valid auth token.'
+            return response_obj, status.HTTP_401_UNAUTHORIZED
+        if user_email:
+            user = User.query.filter_by(email=user_email).first()
+            response_obj = USER_SCHEMA.dump(user).data
+            del response_obj['password']
+            return make_response(jsonify(response_obj), status.HTTP_200_OK)
+        response_obj = {
+            'error': 'Provide a valid auth token.'
         }
-        return make_response(jsonify(response_object)), 401
+        return response_obj, status.HTTP_401_UNAUTHORIZED
 
 
-class LogoutAPI(MethodView):
+class LogoutResource(Resource):
     """
     Logout Resource
     """
-    def post(self): #pylint: disable=no-self-use
+    def post(self):
         """Post method"""
-        auth_header = request.headers.get('Authorization')
-        if auth_header:
-            auth_token = auth_header.split(" ")[1]
-        else:
-            auth_token = ''
-        if auth_token:
-            resp = User.decode_auth_token(auth_token)
-            if not isinstance(resp, str):
-                blacklist_token = BlacklistToken(token=auth_token)
-                try:
-                    DB.session.add(blacklist_token)
-                    DB.session.commit()
-                    response_object = {
-                        'status': 'success',
-                        'message': 'Successfully logged out.'
-                    }
-                    return make_response(jsonify(response_object)), 200
-                except exc.SQLAlchemyError as error:
-                    response_object = {
-                        'status': 'fail',
-                        'message': str(error)
-                    }
-                    return make_response(jsonify(response_object)), 500
-            else:
-                response_object = {
-                    'status': 'fail',
-                    'message': resp
-                }
-                return make_response(jsonify(response_object)), 401
-        else:
-            response_object = {
-                'status': 'fail',
-                'message': 'Provide a valid auth token.'
-            }
-            return make_response(jsonify(response_object)), 403
+        response_obj = jsonify({
+            'message': 'Successfully logged out.'
+        })
+        unset_jwt_cookies(response_obj)
+        return make_response(response_obj, status.HTTP_200_OK)
 
-REGISTRATION_VIEW = RegisterAPI.as_view('register_api')
-LOGIN_VIEW = LoginAPI.as_view('login_api')
-USER_VIEW = UserAPI.as_view('user_api')
-LOGOUT_VIEW = LogoutAPI.as_view('logout_api')
 
-AUTH_BLUEPRINT.add_url_rule(
-    '/auth/register',
-    view_func=REGISTRATION_VIEW,
-    methods=['POST']
-)
-AUTH_BLUEPRINT.add_url_rule(
-    '/auth/login',
-    view_func=LOGIN_VIEW,
-    methods=['POST']
-)
-AUTH_BLUEPRINT.add_url_rule(
-    '/auth/status',
-    view_func=USER_VIEW,
-    methods=['GET']
-)
-AUTH_BLUEPRINT.add_url_rule(
-    '/auth/logout',
-    view_func=LOGOUT_VIEW,
-    methods=['POST']
-)
+API.add_resource(RegisterResource, '/auth/register')
+API.add_resource(LoginResource, '/auth/login')
+API.add_resource(UserResource, '/auth/status')
+API.add_resource(LogoutResource, '/auth/logout')

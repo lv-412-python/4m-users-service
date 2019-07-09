@@ -1,14 +1,15 @@
 """Schemas for Users service."""
+from marshmallow import fields
 from users_service import MA
 
 
 class UserSchema(MA.Schema):  # pylint: disable=too-few-public-methods
     """Implementation of Users schema."""
-    class Meta:  # pylint: disable=too-few-public-methods
-        """Implementation of Meta class with fields, we want to show."""
-        fields = ('users_id', 'email', 'first_name', 'last_name',
-                  'google_id', 'password', 'admin', 'create_date', 'update_date')
-
-
-USER_SCHEMA = UserSchema(strict=True)
-USERS_SCHEMA = UserSchema(many=True, strict=True)
+    users_id = fields.Integer(dump_only=True)
+    email = fields.Email()
+    password = fields.Str()
+    first_name = fields.Str()
+    last_name = fields.Str()
+    google_id = fields.Integer()
+    create_date = fields.DateTime(dump_only=True)
+    update_date = fields.DateTime(dump_only=True)
