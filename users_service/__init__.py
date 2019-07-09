@@ -6,6 +6,7 @@ from flask import Flask
 from flask_restful import Api
 from flask_bcrypt import Bcrypt
 from flask_marshmallow import Marshmallow
+from flask_jwt_extended import JWTManager
 
 COV = coverage.coverage(
     branch=True,
@@ -21,7 +22,7 @@ COV.start()
 APP = Flask(__name__)
 
 API = Api(APP)
-
+JWT = JWTManager(APP)
 MA = Marshmallow(APP)
 BCRYPT = Bcrypt(APP)
 

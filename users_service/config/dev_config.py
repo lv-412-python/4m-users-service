@@ -6,6 +6,7 @@ BASEDIR = os.path.abspath(os.path.dirname(__file__))
 POSTGRES_LOCAL_BASE = 'postgresql://postgres:admin@localhost:5432/'
 DATABASE_NAME = '4m_users_db'
 
+
 class DevConfiguration(Configuration):
     """Development configuration."""
     DEBUG = True
