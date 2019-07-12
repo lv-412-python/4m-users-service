@@ -12,8 +12,7 @@ from flask_jwt_extended import (
     set_access_cookies,
     unset_jwt_cookies
 )
-from users_service import API
-from users_service import BCRYPT
+from users_service import API, APP, BCRYPT
 from users_service.db import DB
 from users_service.models.users import User
 from users_service.serializers.user_schema import UserSchema
@@ -29,8 +28,9 @@ class RegisterResource(Resource):
         """Post method"""
         try:
             new_user = USER_SCHEMA.load(request.json).data
-        except ValidationError as error:
-            return jsonify(error.messages), status.HTTP_400_BAD_REQUEST
+        except ValidationError as err:
+            APP.logger.error(err.args)
+            return jsonify(err.messages), status.HTTP_400_BAD_REQUEST
         user = User(
             email=new_user['email'],
             password=new_user['password'],
@@ -40,7 +40,8 @@ class RegisterResource(Resource):
         DB.session.add(user)
         try:
             DB.session.commit()
-        except IntegrityError:
+        except IntegrityError as err:
+            APP.logger.error(err.args)
             DB.session.rollback()
             response = {
                 'error': 'Already exists.'
@@ -62,13 +63,15 @@ class LoginResource(Resource):
         """Post method"""
         try:
             user_data = USER_SCHEMA.load(request.json).data
-        except ValidationError as error:
-            return jsonify(error.messages), status.HTTP_400_BAD_REQUEST
+        except ValidationError as err:
+            APP.logger.error(err.args)
+            return jsonify(err.messages), status.HTTP_400_BAD_REQUEST
         try:
             user = User.query.filter_by(
                 email=user_data['email']
             ).first()
-        except DataError:
+        except DataError as err:
+            APP.logger.error(err.args)
             response_obj = {
                 'error': 'Invalid url.'
             }
@@ -97,7 +100,8 @@ class UserResource(Resource):
         """Get method"""
         try:
             user_email = get_jwt_identity()
-        except ExpiredSignatureError:
+        except ExpiredSignatureError as err:
+            APP.logger.error(err.args)
             response_obj = {
                 'error': 'Signature expired. Please, log in again.'
             }

@@ -1,4 +1,4 @@
-# Users service [![Build Status](https://travis-ci.org/lv-412-python/4m-users-service.svg?branch=develop)](https://travis-ci.org/lv-412-python/4m-users-service)
+# Users service [![Build Status](https://travis-ci.org/lv-412-python/users-service-repo.svg?branch=develop)](https://travis-ci.org/lv-412-python/users-service-repo)
 ## Description
 This is the source code of the users service, part of 4m project. This service stores data about users and allows to register and sign in on the Web page
 
@@ -29,7 +29,7 @@ postgres=# \q
 ### In the project root create venv and install requirements with Make
 
 ```
-export PYTHONPATH=$PYTHONPATH:/home/.../.../4m-users-service/users_service
+export PYTHONPATH=$PYTHONPATH:/home/.../.../users-service-repo/users_service
 ```
 ```
 make dev-env
