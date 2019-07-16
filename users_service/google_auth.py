@@ -63,6 +63,23 @@ class GUserResource(Resource):
 
     def get(self):
         """Post method."""
+        if is_logged_in:
+            session_g = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
+                                    scope=AUTHORIZATION_SCOPE,
+                                    state=session[AUTH_STATE_KEY],
+                                    redirect_uri=AUTH_REDIRECT_URI)
+
+            oauth2_tokens = session_g.fetch_access_token(
+                ACCESS_TOKEN_URI,
+                authorization_response=request.url)
+
+            session[AUTH_TOKEN_KEY] = oauth2_tokens
+            user_info = get_user_info()
+            return make_response(jsonify(user_info), status.HTTP_200_OK)
+        response_obj = {
+            'error': 'Provide a valid auth token.'
+        }
+        return response_obj, status.HTTP_401_UNAUTHORIZED
 
 
 class GLogoutResource(Resource):
@@ -142,24 +159,24 @@ def login():
 @no_cache
 def google_auth_redirect():
     """This mitigates Cross-Site Request Forgery (CSRF) attacks"""
-    req_state = flask.request.args.get('state', default=None, type=None)
+    req_state = request.args.get('state', default=None, type=None)
 
-    if req_state != flask.session[AUTH_STATE_KEY]:
-        response = flask.make_response('Invalid state parameter', 401)
+    if req_state != session[AUTH_STATE_KEY]:
+        response = make_response('Invalid state parameter', 401)
         return response
 
-    session = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
+    session_g = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
                             scope=AUTHORIZATION_SCOPE,
-                            state=flask.session[AUTH_STATE_KEY],
+                            state=session[AUTH_STATE_KEY],
                             redirect_uri=AUTH_REDIRECT_URI)
 
-    oauth2_tokens = session.fetch_access_token(
+    oauth2_tokens = session_g.fetch_access_token(
         ACCESS_TOKEN_URI,
-        authorization_response=flask.request.url)
+        authorization_response=request.url)
 
-    flask.session[AUTH_TOKEN_KEY] = oauth2_tokens
+    session[AUTH_TOKEN_KEY] = oauth2_tokens
 
-    return flask.redirect(BASE_URI, code=302)
+    return redirect(BASE_URI, status.HTTP_302_FOUND)
 
 @APP.route('/google/logout')
 @no_cache

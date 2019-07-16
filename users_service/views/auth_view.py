@@ -76,7 +76,7 @@ class LoginResource(Resource):
                 'error': 'Invalid url.'
             }
             return response_obj, status.HTTP_404_NOT_FOUND
-        if BCRYPT.check_password_hash(
+        if user and BCRYPT.check_password_hash(
                 user.password, user_data['password']
             ):
             access_token = create_access_token(identity=user.email)
