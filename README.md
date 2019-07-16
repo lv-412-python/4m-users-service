@@ -6,50 +6,17 @@ This is the source code of the users service, part of 4m project. This service s
 * Python (3.6.8)
 * Flask (1.0.3)
 * PostgreSQL (10.8)
+* Docker (18.09.7)
 
 ## Install
-For the next steps of service installation, you will need setup of Ubuntu 18.04
+For the next steps of service installation, you will need setup of Docker
 
-### Install and configure PostgreSQL server on your local machine:
-```
-sudo apt-get install postgresql postgresql-contrib
-sudo -u postgres psql postgres
-
-postgres=# \password
-Enter new password:
-Enter it again:
-
-postgres=# CREATE DATABASE "4m_users_db";
-postgres=# CREATE DATABASE "4m_users_db_test";
-
-postgres=# \q
-```
-
-
-### In the project root create venv and install requirements with Make
+### In the project root dockerize service:
 
 ```
-export PYTHONPATH=$PYTHONPATH:/home/.../.../users-service-repo/users_service
-```
-```
-make dev-env
-```
-#### in case of failure:
-```
-. venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Run project
-
-#### run in development mode
-```
-make dev-env
-```
-
-#### run in production mode
-```
-make prod-env
+docker run --name some-postgres -e POSTGRES_PASSWORD=mysecretpassword -d postgres
+sudo start.sh
+flask db upgrade
 ```
 
 

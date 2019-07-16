@@ -1,7 +1,7 @@
 """Configuration for testing."""
 from users_service.config.base_config import Configuration
 
-POSTGRES_LOCAL_BASE = 'postgresql://postgres:admin@localhost:5432/'
+POSTGRES_LOCAL_BASE = 'postgresql://postgres:mysecretpassword@172.17.0.3:5432/'
 DATABASE_NAME = '4m_users_db'
 
 class TestConfiguration(Configuration):

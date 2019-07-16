@@ -1,53 +1,40 @@
-.PHONY: help install clear lint dev-env prod-env test-env
-PYTHON_PATH_ANSWERS_SERVICE := /home/lev/project/4m/4m-users-service/users_service
+.PHONY: help install lint run-dev run-prod run-test
+PYTHON_PATH_ANSWERS_SERVICE := users-service-repo
 .DEFAULT: help
 help:
 	@echo "make install"
-	@echo "       creates venv and installs requirements"
-	@echo "make dev-env"
+	@echo "       installs requirements"
+	@echo "make run-dev"
 	@echo "       run project in dev mode"
-	@echo "make prod-env"
+	@echo "make run-prod"
 	@echo "       run project in production mode"
-	@echo "make test-env"
+	@echo "make run-test"
 	@echo "       run project in testing mode"
 	@echo "make lint"
 	@echo "       run pylint"
-	@echo "make clear"
-	@echo "       deletes venv and .pyc files"
 
 install:
-	python3 -m venv venv
-	~/projects/4m-users-service/venv/bin/activate; \
-	pip install setuptools --upgrade --ignore-installed --user
-	pip install pip --upgrade --ignore-installed --user
-	pip install -r requirements.txt --user;
+	 pip3 install -r requirements.txt;
 
-clear:
-	rm -rf venv
-	find -iname "*.pyc" -delete
-
-dev-env:
-	 make install; \
+run-dev:
 	 export PYTHONPATH=$(PYTHON_PATH_USERS_SERVICE);\
-	 export FLASK_APP="setup.py"; \
 	 export FLASK_ENV="development"; \
-	 flask run --port=5230;
-
-
-prod-env:
-	 make install; \
-	 export PYTHONPATH=$(PYTHON_PATH_USERS_SERVICE); \
 	 export FLASK_APP="setup.py"; \
+	 python3 -m flask run -p 5230;
+
+
+run-prod:
+	 export PYTHONPATH=$(PYTHON_PATH_USERS_SERVICE); \
 	 export FLASK_ENV="production"; \
+	 export FLASK_APP="setup.py"; \
 	 flask run --port=5230;
 
 
-test-env:
-	 make install; \
+run-test:
 	 export PYTHONPATH=$(PYTHON_PATH_USERS_SERVICE); \
-	 export FLASK_APP="setup.py"; \
 	 export FLASK_ENV="testing"; \
+	 export FLASK_APP="setup.py"; \
 	 flask run --port=5230;
 
 lint:
-	pylint setup.py users_service/
+	 pylint setup.py users_service/
