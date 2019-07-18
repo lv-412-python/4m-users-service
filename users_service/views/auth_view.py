@@ -1,5 +1,5 @@
 """Authentification view"""
-from flask import Blueprint, jsonify, make_response, request
+from flask import Blueprint, jsonify, make_response, request, session
 from flask_restful import Resource
 from jwt.exceptions import ExpiredSignatureError
 from marshmallow import ValidationError
@@ -7,10 +7,7 @@ from sqlalchemy.exc import DataError, IntegrityError
 from flask_api import status
 from flask_jwt_extended import (
     create_access_token,
-    get_jwt_identity,
-    jwt_optional,
-    set_access_cookies,
-    unset_jwt_cookies
+    decode_token
 )
 from users_service import API, APP, BCRYPT
 from users_service.db import DB
@@ -19,6 +16,8 @@ from users_service.serializers.user_schema import UserSchema
 
 AUTH_BLUEPRINT = Blueprint('auth', __name__)
 USER_SCHEMA = UserSchema(strict=True)
+
+AUTH_TOKEN_KEY = 'auth_token'
 
 class RegisterResource(Resource):
     """
@@ -48,10 +47,10 @@ class RegisterResource(Resource):
             }
             return response, status.HTTP_400_BAD_REQUEST
         access_token = create_access_token(identity=user.email)
+        session[AUTH_TOKEN_KEY] = access_token
         response_obj = jsonify({
             'message': 'Successfully registered.'
         })
-        set_access_cookies(response_obj, access_token)
         return make_response(response_obj, status.HTTP_201_CREATED)
 
 
@@ -76,14 +75,14 @@ class LoginResource(Resource):
                 'error': 'Invalid url.'
             }
             return response_obj, status.HTTP_404_NOT_FOUND
-        if BCRYPT.check_password_hash(
+        if user and BCRYPT.check_password_hash(
                 user.password, user_data['password']
             ):
             access_token = create_access_token(identity=user.email)
+            session[AUTH_TOKEN_KEY] = access_token
             response_obj = jsonify({
                 'message': 'Successfully logged in.'
             })
-            set_access_cookies(response_obj, access_token)
             return make_response(response_obj, status.HTTP_201_CREATED)
         response_obj = {
             'error': 'Wrong password.'
@@ -95,26 +94,29 @@ class UserResource(Resource):
     """
     User Resource.
     """
-    @jwt_optional
     def get(self):
         """Get method"""
         try:
-            user_email = get_jwt_identity()
+            access_token = session[AUTH_TOKEN_KEY]
+        except KeyError as err:
+            APP.logger.error(err.args)
+            response_obj = {
+                'error': 'Provide a valid auth token.'
+            }
+            return response_obj, status.HTTP_401_UNAUTHORIZED
+        try:
+            user_info = decode_token(access_token)
+            user_email = user_info['identity']
         except ExpiredSignatureError as err:
             APP.logger.error(err.args)
             response_obj = {
                 'error': 'Signature expired. Please, log in again.'
             }
             return response_obj, status.HTTP_401_UNAUTHORIZED
-        if user_email:
-            user = User.query.filter_by(email=user_email).first()
-            response_obj = USER_SCHEMA.dump(user).data
-            del response_obj['password']
-            return make_response(jsonify(response_obj), status.HTTP_200_OK)
-        response_obj = {
-            'error': 'Provide a valid auth token.'
-        }
-        return response_obj, status.HTTP_401_UNAUTHORIZED
+        user = User.query.filter_by(email=user_email).first()
+        response_obj = USER_SCHEMA.dump(user).data
+        del response_obj['password']
+        return make_response(jsonify(response_obj), status.HTTP_200_OK)
 
 
 class LogoutResource(Resource):
@@ -123,10 +125,10 @@ class LogoutResource(Resource):
     """
     def post(self):
         """Post method"""
+        session.pop(AUTH_TOKEN_KEY, None)
         response_obj = jsonify({
             'message': 'Successfully logged out.'
         })
-        unset_jwt_cookies(response_obj)
         return make_response(response_obj, status.HTTP_200_OK)
 
 

@@ -20,7 +20,7 @@ COV = coverage.coverage(
 COV.start()
 
 APP = Flask(__name__)
-
+APP.secret_key = 'very_secret'
 API = Api(APP)
 JWT = JWTManager(APP)
 MA = Marshmallow(APP)
