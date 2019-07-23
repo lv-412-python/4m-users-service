@@ -34,7 +34,8 @@ class RegisterResource(Resource):
             email=new_user['email'],
             password=new_user['password'],
             first_name=new_user['first_name'],
-            last_name=new_user['last_name']
+            last_name=new_user['last_name'],
+            role_id=1
         )
         DB.session.add(user)
         try:
@@ -115,7 +116,6 @@ class UserResource(Resource):
             return response_obj, status.HTTP_401_UNAUTHORIZED
         user = User.query.filter_by(email=user_email).first()
         response_obj = USER_SCHEMA.dump(user).data
-        del response_obj['password']
         return make_response(jsonify(response_obj), status.HTTP_200_OK)
 
 
