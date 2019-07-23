@@ -9,6 +9,7 @@ class UserSchema(MA.Schema):  # pylint: disable=too-few-public-methods
     email = fields.Email()
     first_name = fields.Str()
     last_name = fields.Str()
+    password = fields.Str()
     google_id = fields.Integer()
     role_id = fields.Integer()
     create_date = fields.DateTime(dump_only=True)
