@@ -7,6 +7,7 @@ from flask_restful import Api
 from flask_bcrypt import Bcrypt
 from flask_marshmallow import Marshmallow
 from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 
 COV = coverage.coverage(
     branch=True,
@@ -20,6 +21,7 @@ COV = coverage.coverage(
 COV.start()
 
 APP = Flask(__name__)
+CORS(APP)
 APP.secret_key = 'very_secret'
 API = Api(APP)
 JWT = JWTManager(APP)

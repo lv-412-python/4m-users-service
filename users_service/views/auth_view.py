@@ -70,7 +70,7 @@ class LoginResource(Resource):
             user = User.query.filter_by(
                 email=user_data['email']
             ).first()
-        except DataError as err:
+        except (KeyError, DataError) as err:
             APP.logger.error(err.args)
             response_obj = {
                 'error': 'Invalid url.'
