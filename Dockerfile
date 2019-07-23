@@ -8,7 +8,7 @@ ENV LANG=C.UTF-8
 
 COPY ./ ./opt/users-service-repo
 WORKDIR /opt/users-service-repo
-
+EXPOSE 5050
 RUN make install
 
 ENTRYPOINT ["python3"]
