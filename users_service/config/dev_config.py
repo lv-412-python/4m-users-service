@@ -3,7 +3,7 @@ import os
 from users_service.config.base_config import Configuration
 
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
-POSTGRES_LOCAL_BASE = 'postgresql://postgres:mysecretpassword@172.17.0.3:5432/'
+POSTGRES_LOCAL_BASE = 'postgresql://postgres:mysecretpassword@db:5432/'
 DATABASE_NAME = '4m_users_db'
 
 
