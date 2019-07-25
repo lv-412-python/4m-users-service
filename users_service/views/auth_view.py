@@ -1,4 +1,4 @@
-"""Authentification view"""
+"""Authentication view"""
 from flask import Blueprint, jsonify, make_response, request, session
 from flask_restful import Resource
 from jwt.exceptions import ExpiredSignatureError
@@ -14,10 +14,12 @@ from users_service.db import DB
 from users_service.models.users import User
 from users_service.serializers.user_schema import UserSchema
 
-AUTH_BLUEPRINT = Blueprint('auth', __name__)
+AUTH_BLUEPRINT = Blueprint('users', __name__)
 USER_SCHEMA = UserSchema(strict=True)
+USERS_SCHEMA = UserSchema(strict=True, many=True)
 
 AUTH_TOKEN_KEY = 'auth_token'
+IS_ADMIN = 'admin'
 
 class RegisterResource(Resource):
     """
@@ -49,8 +51,10 @@ class RegisterResource(Resource):
             return response, status.HTTP_400_BAD_REQUEST
         access_token = create_access_token(identity=user.email)
         session[AUTH_TOKEN_KEY] = access_token
+        session[IS_ADMIN] = False
         response_obj = jsonify({
-            'message': 'Successfully registered.'
+            'message': 'Successfully registered.',
+            'token': access_token
         })
         return make_response(response_obj, status.HTTP_201_CREATED)
 
@@ -81,8 +85,10 @@ class LoginResource(Resource):
             ):
             access_token = create_access_token(identity=user.email)
             session[AUTH_TOKEN_KEY] = access_token
+            session[IS_ADMIN] = bool(user.role_id == 2)
             response_obj = jsonify({
-                'message': 'Successfully logged in.'
+                'message': 'Successfully logged in.',
+                'token': access_token
             })
             return make_response(response_obj, status.HTTP_201_CREATED)
         response_obj = {
@@ -91,14 +97,14 @@ class LoginResource(Resource):
         return response_obj, status.HTTP_400_BAD_REQUEST
 
 
-class UserResource(Resource):
+class StatusResource(Resource):
     """
-    User Resource.
+    Status Resource.
     """
     def get(self):
         """Get method"""
         try:
-            access_token = session[AUTH_TOKEN_KEY]
+            access_token = request.headers.get('Set-Cookie').split('=')[1]
         except KeyError as err:
             APP.logger.error(err.args)
             response_obj = {
@@ -116,6 +122,7 @@ class UserResource(Resource):
             return response_obj, status.HTTP_401_UNAUTHORIZED
         user = User.query.filter_by(email=user_email).first()
         response_obj = USER_SCHEMA.dump(user).data
+        del response_obj['password']
         return make_response(jsonify(response_obj), status.HTTP_200_OK)
 
 
@@ -126,13 +133,28 @@ class LogoutResource(Resource):
     def post(self):
         """Post method"""
         session.pop(AUTH_TOKEN_KEY, None)
+        session.pop(IS_ADMIN, None)
+        session.clear()
         response_obj = jsonify({
             'message': 'Successfully logged out.'
         })
         return make_response(response_obj, status.HTTP_200_OK)
 
+class UsersResource(Resource):
+    """
+    Users Resource.
+    """
+    def get(self):
+        """Get method"""
+        users = User.query.all()
+        response_obj = USERS_SCHEMA.dump(users).data
+        for obj in response_obj:
+            del obj['password']
+        return make_response(jsonify(response_obj), status.HTTP_200_OK)
 
-API.add_resource(RegisterResource, '/auth/register')
-API.add_resource(LoginResource, '/auth/login')
-API.add_resource(UserResource, '/auth/status')
-API.add_resource(LogoutResource, '/auth/logout')
+
+API.add_resource(UsersResource, '/users')
+API.add_resource(RegisterResource, '/users/register')
+API.add_resource(LoginResource, '/users/login')
+API.add_resource(StatusResource, '/users/status')
+API.add_resource(LogoutResource, '/users/logout')
