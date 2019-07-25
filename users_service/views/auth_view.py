@@ -105,7 +105,7 @@ class StatusResource(Resource):
         """Get method"""
         try:
             access_token = request.headers.get('Set-Cookie').split('=')[1]
-        except KeyError as err:
+        except IndexError as err:
             APP.logger.error(err.args)
             response_obj = {
                 'error': 'Provide a valid auth token.'
