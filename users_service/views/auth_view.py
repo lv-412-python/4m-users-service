@@ -16,7 +16,8 @@ from users_service.serializers.user_schema import UserSchema
 
 AUTH_BLUEPRINT = Blueprint('users', __name__)
 USER_SCHEMA = UserSchema(strict=True)
-USERS_SCHEMA = UserSchema(strict=True, many=True)
+USER_SCHEMA_NO_PASSWD = UserSchema(strict=True, exclude=['password'])
+USERS_SCHEMA = UserSchema(strict=True, many=True, exclude=['password'])
 
 AUTH_TOKEN_KEY = 'auth_token'
 IS_ADMIN = 'admin'
@@ -126,8 +127,7 @@ class StatusResource(Resource):
             }
             return response_obj, status.HTTP_401_UNAUTHORIZED
         user = User.query.filter_by(email=user_email).first()
-        response_obj = USER_SCHEMA.dump(user).data
-        del response_obj['password']
+        response_obj = USER_SCHEMA_NO_PASSWD.dump(user).data
         return make_response(jsonify(response_obj), status.HTTP_200_OK)
 
 
@@ -151,8 +151,6 @@ class UsersResource(Resource):
         """Get method"""
         users = User.query.all()
         response_obj = USERS_SCHEMA.dump(users).data
-        for obj in response_obj:
-            del obj['password']
         return make_response(jsonify(response_obj), status.HTTP_200_OK)
 
 
