@@ -49,12 +49,12 @@ class RegisterResource(Resource):
                 'error': 'Already exists.'
             }
             return response, status.HTTP_400_BAD_REQUEST
+        session.permanent = True
         access_token = create_access_token(identity=user.email)
         session[AUTH_TOKEN_KEY] = access_token
         session[IS_ADMIN] = False
         response_obj = jsonify({
-            'message': 'Successfully registered.',
-            'token': access_token
+            'message': 'Successfully registered.'
         })
         return make_response(response_obj, status.HTTP_201_CREATED)
 
@@ -80,19 +80,24 @@ class LoginResource(Resource):
                 'error': 'Invalid url.'
             }
             return response_obj, status.HTTP_404_NOT_FOUND
-        if user and BCRYPT.check_password_hash(
-                user.password, user_data['password']
+        if user:
+            if BCRYPT.check_password_hash(
+                    user.password, user_data['password']
             ):
-            access_token = create_access_token(identity=user.email)
-            session[AUTH_TOKEN_KEY] = access_token
-            session[IS_ADMIN] = bool(user.role_id == 2)
-            response_obj = jsonify({
-                'message': 'Successfully logged in.',
-                'token': access_token
-            })
-            return make_response(response_obj, status.HTTP_201_CREATED)
+                session.permanent = True
+                access_token = create_access_token(identity=user.email)
+                session[AUTH_TOKEN_KEY] = access_token
+                session[IS_ADMIN] = bool(user.role_id == 2)
+                response_obj = jsonify({
+                    'message': 'Successfully logged in.'
+                })
+                return make_response(response_obj, status.HTTP_201_CREATED)
+            response_obj = {
+                'error': 'Wrong password.'
+            }
+            return response_obj, status.HTTP_400_BAD_REQUEST
         response_obj = {
-            'error': 'Wrong password.'
+            'error': 'No user with this email.'
         }
         return response_obj, status.HTTP_400_BAD_REQUEST
 
@@ -104,8 +109,8 @@ class StatusResource(Resource):
     def get(self):
         """Get method"""
         try:
-            access_token = request.headers.get('Set-Cookie').split('=')[1]
-        except IndexError as err:
+            access_token = session[AUTH_TOKEN_KEY]
+        except KeyError as err:
             APP.logger.error(err.args)
             response_obj = {
                 'error': 'Provide a valid auth token.'
@@ -132,8 +137,6 @@ class LogoutResource(Resource):
     """
     def post(self):
         """Post method"""
-        session.pop(AUTH_TOKEN_KEY, None)
-        session.pop(IS_ADMIN, None)
         session.clear()
         response_obj = jsonify({
             'message': 'Successfully logged out.'
