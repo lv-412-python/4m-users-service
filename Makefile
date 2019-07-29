@@ -20,21 +20,21 @@ run-dev:
 	 export PYTHONPATH=$(PYTHON_PATH_USERS_SERVICE);\
 	 export FLASK_ENV="development"; \
 	 export FLASK_APP="setup.py"; \
-	 python3 -m flask run -p 5230;
+	 python3 -m flask run -p 5050;
 
 
 run-prod:
 	 export PYTHONPATH=$(PYTHON_PATH_USERS_SERVICE); \
 	 export FLASK_ENV="production"; \
 	 export FLASK_APP="setup.py"; \
-	 flask run --port=5230;
+	 python3 -m flask run -p 5050;
 
 
 run-test:
 	 export PYTHONPATH=$(PYTHON_PATH_USERS_SERVICE); \
 	 export FLASK_ENV="testing"; \
 	 export FLASK_APP="setup.py"; \
-	 flask run --port=5230;
+	 python3 -m flask run -p 5050;
 
 lint:
 	 pylint setup.py users_service/
