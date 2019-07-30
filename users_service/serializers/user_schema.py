@@ -5,7 +5,7 @@ from users_service import MA
 
 class UserSchema(MA.Schema):  # pylint: disable=too-few-public-methods
     """Implementation of Users schema."""
-    users_id = fields.Integer(dump_only=True)
+    user_id = fields.Integer(dump_only=True)
     email = fields.Email()
     first_name = fields.Str()
     last_name = fields.Str()
