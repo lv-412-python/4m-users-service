@@ -148,6 +148,7 @@ class UsersResource(Resource):
     def get(self):
         """Get method"""
         url_args = {
+            'id': fields.Int(),
             'email': fields.String(),
             'first_name': fields.String(),
             'last_name': fields.String(),
@@ -160,6 +161,8 @@ class UsersResource(Resource):
             APP.logger.error('%s not correct URL', request.url)
             return {"error": "Invalid URL."}, status.HTTP_400_BAD_REQUEST
         users = User.query.filter()
+        if 'id' in args:
+            users = users.filter(User.user_id == args['id'])
         if 'from_date' in args:
             users = users.filter(User.create_date >= args['from_date'])
         if 'end_date' in args:
