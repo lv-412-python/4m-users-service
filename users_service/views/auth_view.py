@@ -1,14 +1,12 @@
 """Authentication view"""
 from flask import Blueprint, jsonify, make_response, request, session
-from flask_restful import Resource
+from flask_restful import HTTPException, Resource
 from jwt.exceptions import ExpiredSignatureError
-from marshmallow import ValidationError
+from marshmallow import fields, ValidationError
 from sqlalchemy.exc import DataError, IntegrityError
 from flask_api import status
-from flask_jwt_extended import (
-    create_access_token,
-    decode_token
-)
+from flask_jwt_extended import create_access_token, decode_token
+from webargs.flaskparser import parser
 from users_service import API, APP, BCRYPT
 from users_service.db import DB
 from users_service.models.users import User
@@ -149,9 +147,35 @@ class UsersResource(Resource):
     """
     def get(self):
         """Get method"""
-        users = User.query.all()
+        url_args = {
+            'email': fields.String(),
+            'first_name': fields.String(),
+            'last_name': fields.String(),
+            'from_date': fields.Date(),
+            'end_date': fields.Date()
+        }
+        try:
+            args = parser.parse(url_args, request)
+        except HTTPException:
+            APP.logger.error('%s not correct URL', request.url)
+            return {"error": "Invalid URL."}, status.HTTP_400_BAD_REQUEST
+        users = User.query.filter()
+        if 'from_date' in args:
+            users = users.filter(User.create_date >= args['from_date'])
+        if 'end_date' in args:
+            users = users.filter(User.create_date <= args['end_date'])
+        if 'first_name' in args:
+            users = users.filter(User.first_name.like('%' + args['first_name'] + '%'))
+        if 'last_name' in args:
+            users = users.filter(User.last_name.like('%' + args['last_name'] + '%'))
+        if 'email' in args:
+            users = users.filter(User.email.like('%' + args['email'] + '%'))
         response_obj = USERS_SCHEMA.dump(users).data
-        return make_response(jsonify(response_obj), status.HTTP_200_OK)
+        if not response_obj:
+            response_obj = {
+                'message': 'No user fitting criteria.'
+            }
+        return response_obj, status.HTTP_200_OK
 
 
 API.add_resource(UsersResource, '/users')
