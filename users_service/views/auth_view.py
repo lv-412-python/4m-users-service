@@ -18,7 +18,6 @@ USER_SCHEMA_NO_PASSWD = UserSchema(strict=True, exclude=['password'])
 USERS_SCHEMA = UserSchema(strict=True, many=True, exclude=['password'])
 
 AUTH_TOKEN_KEY = 'auth_token'
-IS_ADMIN = 'admin'
 
 class RegisterResource(Resource):
     """
@@ -51,10 +50,11 @@ class RegisterResource(Resource):
         session.permanent = True
         access_token = create_access_token(identity=user.email)
         session[AUTH_TOKEN_KEY] = access_token
-        session[IS_ADMIN] = False
+
         response_obj = jsonify({
             'message': 'Successfully registered.'
         })
+        response_obj.set_cookie("admin", str(False))
         return make_response(response_obj, status.HTTP_201_CREATED)
 
 
@@ -86,10 +86,10 @@ class LoginResource(Resource):
                 session.permanent = True
                 access_token = create_access_token(identity=user.email)
                 session[AUTH_TOKEN_KEY] = access_token
-                session[IS_ADMIN] = bool(user.role_id == 2)
                 response_obj = jsonify({
                     'message': 'Successfully logged in.'
                 })
+                response_obj.set_cookie("admin", str(bool(user.role_id == 2)))
                 return make_response(response_obj, status.HTTP_201_CREATED)
             response_obj = {
                 'error': 'Wrong password.'
@@ -147,38 +147,41 @@ class UsersResource(Resource):
     """
     def get(self):
         """Get method"""
-        url_args = {
-            'id': fields.Int(),
-            'email': fields.String(),
-            'first_name': fields.String(),
-            'last_name': fields.String(),
-            'from_date': fields.Date(),
-            'end_date': fields.Date()
-        }
-        try:
-            args = parser.parse(url_args, request)
-        except HTTPException:
-            APP.logger.error('%s not correct URL', request.url)
-            return {"error": "Invalid URL."}, status.HTTP_400_BAD_REQUEST
-        users = User.query.filter()
-        if 'id' in args:
-            users = users.filter(User.user_id == args['id'])
-        if 'from_date' in args:
-            users = users.filter(User.create_date >= args['from_date'])
-        if 'end_date' in args:
-            users = users.filter(User.create_date <= args['end_date'])
-        if 'first_name' in args:
-            users = users.filter(User.first_name.like('%' + args['first_name'] + '%'))
-        if 'last_name' in args:
-            users = users.filter(User.last_name.like('%' + args['last_name'] + '%'))
-        if 'email' in args:
-            users = users.filter(User.email.like('%' + args['email'] + '%'))
-        response_obj = USERS_SCHEMA.dump(users).data
-        if not response_obj:
-            response_obj = {
-                'message': 'No user fitting criteria.'
+        admin = request.cookies.get('admin')
+        if admin:
+            url_args = {
+                'email': fields.String(),
+                'first_name': fields.String(),
+                'last_name': fields.String(),
+                'from_date': fields.Date(),
+                'end_date': fields.Date()
             }
-        return response_obj, status.HTTP_200_OK
+            try:
+                args = parser.parse(url_args, request)
+            except HTTPException:
+                APP.logger.error('%s not correct URL', request.url)
+                return {"error": "Invalid URL."}, status.HTTP_400_BAD_REQUEST
+            users = User.query.filter()
+            if 'from_date' in args:
+                users = users.filter(User.create_date >= args['from_date'])
+            if 'end_date' in args:
+                users = users.filter(User.create_date <= args['end_date'])
+            if 'first_name' in args:
+                users = users.filter(User.first_name.like('%' + args['first_name'] + '%'))
+            if 'last_name' in args:
+                users = users.filter(User.last_name.like('%' + args['last_name'] + '%'))
+            if 'email' in args:
+                users = users.filter(User.email.like('%' + args['email'] + '%'))
+            response_obj = USERS_SCHEMA.dump(users).data
+            if not response_obj:
+                response_obj = {
+                    'message': 'No user fitting criteria.'
+                }
+            return response_obj, status.HTTP_200_OK
+        response_obj = {
+            'message': 'Not allowed.'
+        }
+        return response_obj, status.HTTP_403_FORBIDDEN
 
 
 API.add_resource(UsersResource, '/users')
