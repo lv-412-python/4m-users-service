@@ -32,5 +32,5 @@ BCRYPT = Bcrypt(APP)
 
 from users_service.views.auth_view import AUTH_BLUEPRINT # pylint: disable=wrong-import-position
 APP.register_blueprint(AUTH_BLUEPRINT)
-# from users_service.views.google_auth import BLUEPRINT # pylint: disable=wrong-import-position
-# APP.register_blueprint(BLUEPRINT)
+from users_service.views.google_auth import G_BLUEPRINT # pylint: disable=wrong-import-position
+APP.register_blueprint(G_BLUEPRINT)

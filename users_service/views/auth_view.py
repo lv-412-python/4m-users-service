@@ -30,13 +30,22 @@ class RegisterResource(Resource):
         except ValidationError as err:
             APP.logger.error(err.args)
             return jsonify(err.messages), status.HTTP_400_BAD_REQUEST
-        user = User(
-            email=new_user['email'],
-            password=new_user['password'],
-            first_name=new_user['first_name'],
-            last_name=new_user['last_name'],
-            role_id=1
-        )
+        try:
+            user = User(
+                email=new_user['email'],
+                password=new_user['password'],
+                first_name=new_user['first_name'],
+                last_name=new_user['last_name'],
+                role_id=1
+            )
+        except KeyError:
+            user = User(
+                email=new_user['email'],
+                google_id=new_user['google_id'],
+                first_name=new_user['first_name'],
+                last_name=new_user['last_name'],
+                role_id=1
+            )
         DB.session.add(user)
         try:
             DB.session.commit()
@@ -67,22 +76,26 @@ class LoginResource(Resource):
         try:
             user_data = USER_SCHEMA.load(request.json).data
         except ValidationError as err:
-            APP.logger.error(err.args)
+            APP.logger.exception(err.args)
             return jsonify(err.messages), status.HTTP_400_BAD_REQUEST
         try:
             user = User.query.filter_by(
                 email=user_data['email']
             ).first()
         except (KeyError, DataError) as err:
-            APP.logger.error(err.args)
+            APP.logger.exception(err.args)
             response_obj = {
                 'error': 'Invalid url.'
             }
             return response_obj, status.HTTP_404_NOT_FOUND
         if user:
-            if BCRYPT.check_password_hash(
+            try:
+                check_user = BCRYPT.check_password_hash(
                     user.password, user_data['password']
-            ):
+                )
+            except KeyError:
+                check_user = user.google_id
+            if check_user:
                 session.permanent = True
                 access_token = create_access_token(identity=user.user_id)
                 session[AUTH_TOKEN_KEY] = access_token
