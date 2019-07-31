@@ -18,6 +18,8 @@ install:
 
 run-dev:
 	 export PYTHONPATH=$(PYTHON_PATH_USERS_SERVICE);\
+	 export OAUTHLIB_INSECURE_TRANSPORT=1;\
+	 export OAUTHLIB_RELAX_TOKEN_SCOPE=1;\
 	 export FLASK_ENV="development"; \
 	 export FLASK_APP="setup.py"; \
 	 python3 -m flask run -p 5050;
