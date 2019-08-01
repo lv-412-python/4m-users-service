@@ -139,6 +139,7 @@ class LogoutResource(Resource):
         response_obj = jsonify({
             'message': 'Successfully logged out.'
         })
+        response_obj.delete_cookie('admin')
         return make_response(response_obj, status.HTTP_200_OK)
 
 class UsersResource(Resource):
@@ -175,13 +176,46 @@ class UsersResource(Resource):
             response_obj = USERS_SCHEMA.dump(users).data
             if not response_obj:
                 response_obj = {
-                    'message': 'No user fitting criteria.'
+                    'error': 'No user fitting criteria.'
                 }
             return response_obj, status.HTTP_200_OK
         response_obj = {
-            'message': 'Not allowed.'
+            'error': 'Not allowed.'
         }
         return response_obj, status.HTTP_403_FORBIDDEN
+
+
+    def put(self):
+        """Put method"""
+        admin = request.cookies.get('admin')
+        if admin:
+            user_email = request.json.get("email")
+            print(user_email)
+            user = User.query.filter_by(email=user_email).first()
+            if user:
+                user.role_id = 2
+                try:
+                    DB.session.commit()
+                except IntegrityError as err:
+                    APP.logger.error(err.args)
+                    DB.session.rollback()
+                    response = {
+                        'error': 'Database error.'
+                    }
+                    return response, status.HTTP_400_BAD_REQUEST
+                response_obj = {
+                    'message': 'Successfully updated.'
+                }
+                return response_obj, status.HTTP_200_OK
+            response_obj = {
+                'error': 'No user with this email.'
+            }
+            return response_obj, status.HTTP_400_BAD_REQUEST
+        response_obj = {
+            'error': 'Not allowed.'
+        }
+        return response_obj, status.HTTP_403_FORBIDDEN
+
 
 
 API.add_resource(UsersResource, '/users')
