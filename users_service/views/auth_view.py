@@ -48,7 +48,7 @@ class RegisterResource(Resource):
             }
             return response, status.HTTP_400_BAD_REQUEST
         session.permanent = True
-        access_token = create_access_token(identity=user.email)
+        access_token = create_access_token(identity=user.user_id)
         session[AUTH_TOKEN_KEY] = access_token
 
         response_obj = jsonify({
@@ -84,7 +84,7 @@ class LoginResource(Resource):
                     user.password, user_data['password']
             ):
                 session.permanent = True
-                access_token = create_access_token(identity=user.email)
+                access_token = create_access_token(identity=user.user_id)
                 session[AUTH_TOKEN_KEY] = access_token
                 response_obj = jsonify({
                     'message': 'Successfully logged in.'
@@ -117,14 +117,14 @@ class StatusResource(Resource):
             return response_obj, status.HTTP_401_UNAUTHORIZED
         try:
             user_info = decode_token(access_token)
-            user_email = user_info['identity']
+            user_id = user_info['identity']
         except ExpiredSignatureError as err:
             APP.logger.error(err.args)
             response_obj = {
                 'error': 'Signature expired. Please, log in again.'
             }
             return response_obj, status.HTTP_401_UNAUTHORIZED
-        user = User.query.filter_by(email=user_email).first()
+        user = User.query.get(user_id)
         response_obj = USER_SCHEMA_NO_PASSWD.dump(user).data
         return make_response(jsonify(response_obj), status.HTTP_200_OK)
 
@@ -141,6 +141,7 @@ class LogoutResource(Resource):
         })
         response_obj.delete_cookie('admin')
         return make_response(response_obj, status.HTTP_200_OK)
+
 
 class UsersResource(Resource):
     """
@@ -217,9 +218,37 @@ class UsersResource(Resource):
         return response_obj, status.HTTP_403_FORBIDDEN
 
 
+class GetIdResource(Resource):
+    """
+    Get user id Resource.
+    """
+    def get(self):
+        """Get method"""
+        try:
+            access_token = session[AUTH_TOKEN_KEY]
+        except KeyError as err:
+            APP.logger.error(err.args)
+            response_obj = {
+                'error': 'Provide a valid auth token.'
+            }
+            return response_obj, status.HTTP_401_UNAUTHORIZED
+        try:
+            user_info = decode_token(access_token)
+            user_id = user_info['identity']
+        except ExpiredSignatureError as err:
+            APP.logger.error(err.args)
+            response_obj = {
+                'error': 'Signature expired. Please, log in again.'
+            }
+            return response_obj, status.HTTP_401_UNAUTHORIZED
+        response_obj = {
+            'id': user_id
+        }
+        return make_response(jsonify(response_obj), status.HTTP_200_OK)
 
 API.add_resource(UsersResource, '/users')
 API.add_resource(RegisterResource, '/users/register')
 API.add_resource(LoginResource, '/users/login')
 API.add_resource(StatusResource, '/users/status')
 API.add_resource(LogoutResource, '/users/logout')
+API.add_resource(GetIdResource, '/users/id')
