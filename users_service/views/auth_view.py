@@ -1,7 +1,6 @@
 """Authentication view"""
 from flask import Blueprint, jsonify, make_response, request, session
 from flask_restful import HTTPException, Resource
-from jwt.exceptions import ExpiredSignatureError
 from marshmallow import fields, ValidationError
 from sqlalchemy.exc import DataError, IntegrityError
 from flask_api import status
@@ -57,7 +56,7 @@ class RegisterResource(Resource):
             }
             return response, status.HTTP_400_BAD_REQUEST
         session.permanent = True
-        access_token = create_access_token(identity=user.user_id)
+        access_token = create_access_token(identity=user.user_id, expires_delta=False)
         session[AUTH_TOKEN_KEY] = access_token
 
         response_obj = jsonify({
@@ -97,7 +96,7 @@ class LoginResource(Resource):
                 check_user = user.google_id
             if check_user:
                 session.permanent = True
-                access_token = create_access_token(identity=user.user_id)
+                access_token = create_access_token(identity=user.user_id, expires_delta=False)
                 session[AUTH_TOKEN_KEY] = access_token
                 response_obj = jsonify({
                     'message': 'Successfully logged in.'
@@ -114,9 +113,9 @@ class LoginResource(Resource):
         return response_obj, status.HTTP_400_BAD_REQUEST
 
 
-class StatusResource(Resource):
+class ProfileResource(Resource):
     """
-    Status Resource.
+    Profile Resource.
     """
     def get(self):
         """Get method"""
@@ -128,18 +127,43 @@ class StatusResource(Resource):
                 'error': 'Provide a valid auth token.'
             }
             return response_obj, status.HTTP_401_UNAUTHORIZED
-        try:
-            user_info = decode_token(access_token)
-            user_id = user_info['identity']
-        except ExpiredSignatureError as err:
-            APP.logger.error(err.args)
-            response_obj = {
-                'error': 'Signature expired. Please, log in again.'
-            }
-            return response_obj, status.HTTP_401_UNAUTHORIZED
+        user_info = decode_token(access_token)
+        user_id = user_info['identity']
         user = User.query.get(user_id)
         response_obj = USER_SCHEMA_NO_PASSWD.dump(user).data
         return make_response(jsonify(response_obj), status.HTTP_200_OK)
+
+    def put(self):
+        """Put method"""
+        try:
+            access_token = session[AUTH_TOKEN_KEY]
+        except KeyError as err:
+            APP.logger.error(err.args)
+            response_obj = {
+                'error': 'Provide a valid auth token.'
+            }
+            return response_obj, status.HTTP_401_UNAUTHORIZED
+        user_info = decode_token(access_token)
+        user_id = user_info['identity']
+        user = User.query.get(user_id)
+        if user.google_id:
+            user.password = request.json['password']
+        else:
+            user.google_id = request.json['google_id']
+        try:
+            DB.session.commit()
+        except IntegrityError as err:
+            APP.logger.error(err.args)
+            DB.session.rollback()
+            response = {
+                'error': 'Database error.'
+            }
+            return response, status.HTTP_400_BAD_REQUEST
+        response_obj = {
+            'message': 'Successfully updated.'
+        }
+        return response_obj, status.HTTP_200_OK
+
 
 
 class LogoutResource(Resource):
@@ -165,6 +189,7 @@ class UsersResource(Resource):
         admin = request.cookies.get('admin')
         if admin:
             url_args = {
+                'user_id': fields.List(fields.Int(validate=lambda val: val > 0)),
                 'email': fields.String(),
                 'first_name': fields.String(),
                 'last_name': fields.String(),
@@ -176,7 +201,10 @@ class UsersResource(Resource):
             except HTTPException:
                 APP.logger.error('%s not correct URL', request.url)
                 return {"error": "Invalid URL."}, status.HTTP_400_BAD_REQUEST
-            users = User.query.filter()
+            users = User.query.filter().order_by(User.user_id)
+
+            if 'user_id' in args:
+                users = users.filter(User.user_id.in_(args['user_id']))
             if 'from_date' in args:
                 users = users.filter(User.create_date >= args['from_date'])
             if 'end_date' in args:
@@ -245,15 +273,8 @@ class GetIdResource(Resource):
                 'error': 'Provide a valid auth token.'
             }
             return response_obj, status.HTTP_401_UNAUTHORIZED
-        try:
-            user_info = decode_token(access_token)
-            user_id = user_info['identity']
-        except ExpiredSignatureError as err:
-            APP.logger.error(err.args)
-            response_obj = {
-                'error': 'Signature expired. Please, log in again.'
-            }
-            return response_obj, status.HTTP_401_UNAUTHORIZED
+        user_info = decode_token(access_token)
+        user_id = user_info['identity']
         response_obj = {
             'id': user_id
         }
@@ -262,6 +283,6 @@ class GetIdResource(Resource):
 API.add_resource(UsersResource, '/users')
 API.add_resource(RegisterResource, '/users/register')
 API.add_resource(LoginResource, '/users/login')
-API.add_resource(StatusResource, '/users/status')
+API.add_resource(ProfileResource, '/users/profile')
 API.add_resource(LogoutResource, '/users/logout')
 API.add_resource(GetIdResource, '/users/id')

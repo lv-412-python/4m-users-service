@@ -47,6 +47,8 @@ class GLoginResource(Resource):
         response_obj = make_response(jsonify({'url':url}))
         if request.args.get('method') == 'login':
             url_to = "http://127.0.0.1/users/login"
+        elif request.args.get('method') == 'expand':
+            url_to = "http://127.0.0.1/users/profile"
         else:
             url_to = "http://127.0.0.1/users/register"
         response_obj.set_cookie("url_to", url_to)
@@ -62,6 +64,8 @@ class GRedirResource(Resource):
         http_parser = Http()
         if request.cookies.get('url_to') == 'http://127.0.0.1/users/login':
             login_failed_url = 'http://127.0.0.1:3000/login'
+        elif request.cookies.get('url_to') == 'http://127.0.0.1/users/profile':
+            login_failed_url = 'http://127.0.0.1:3000/profile'
         else:
             login_failed_url = 'http://127.0.0.1:3000/register'
         if request.args.get('error') or not request.args.get('code'):
@@ -103,10 +107,16 @@ class GRedirResource(Resource):
             google_id=google_profile["id"]
         )
         response_obj = USER_SCHEMA.dump(user).data
-        resp = requests.post(
-            url=redirect_to,
-            json=response_obj
-        )
+        if redirect_to == 'http://127.0.0.1/users/login' or 'http://127.0.0.1/users/register':
+            resp = requests.post(
+                url=redirect_to,
+                json=response_obj
+            )
+        else:
+            resp = requests.put(
+                url=redirect_to,
+                json=response_obj
+            )
         if resp.status_code != 201:
             return redirect(login_failed_url)
         cookies_to_set = resp.cookies.get_dict()
