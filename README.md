@@ -8,6 +8,9 @@ This is the source code of the users service, part of 4m project. This service s
 * PostgreSQL (10.8)
 * Docker (18.09.7)
 
+## ER diagram
+![alt_text](diagrams/4m_users.png)
+
 ## Install
 For the next steps of service installation, you will need setup of Docker
 
