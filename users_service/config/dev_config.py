@@ -17,3 +17,5 @@ class DevConfiguration(Configuration):
     SESSION_COOKIE_HTTPONLY=False
     REMEMBER_COOKIE_DURATION=600
     SESSION_COOKIE_DOMAIN='127.0.0.1'
+
+    SECRET_KEY = 'very_secret'

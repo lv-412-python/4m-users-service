@@ -63,7 +63,7 @@ class RegisterResource(Resource):
             'message': 'Successfully registered.'
         })
         response_obj.set_cookie("admin", str(False))
-        return make_response(response_obj, status.HTTP_201_CREATED)
+        return make_response(response_obj, status.HTTP_200_OK)
 
 
 class LoginResource(Resource):
@@ -102,7 +102,7 @@ class LoginResource(Resource):
                     'message': 'Successfully logged in.'
                 })
                 response_obj.set_cookie("admin", str(bool(user.role_id == 2)))
-                return make_response(response_obj, status.HTTP_201_CREATED)
+                return make_response(response_obj, status.HTTP_200_OK)
             response_obj = {
                 'error': 'Wrong password.'
             }
@@ -147,9 +147,12 @@ class ProfileResource(Resource):
         user_id = user_info['identity']
         user = User.query.get(user_id)
         if user.google_id:
-            user.password = request.json['password']
+            password = request.json.get('password')
+            user.password = BCRYPT.generate_password_hash(
+                password, APP.config.get('BCRYPT_LOG_ROUNDS')
+            ).decode()
         else:
-            user.google_id = request.json['google_id']
+            user.google_id = request.json.get('google_id')
         try:
             DB.session.commit()
         except IntegrityError as err:
