@@ -107,7 +107,8 @@ class GRedirResource(Resource):
             google_id=google_profile["id"]
         )
         response_obj = USER_SCHEMA.dump(user).data
-        if redirect_to == 'http://127.0.0.1/users/login' or 'http://127.0.0.1/users/register':
+        if redirect_to == 'http://127.0.0.1/users/login' \
+            or 'http://127.0.0.1/users/register':
             resp = requests.post(
                 url=redirect_to,
                 json=response_obj
@@ -117,7 +118,7 @@ class GRedirResource(Resource):
                 url=redirect_to,
                 json=response_obj
             )
-        if resp.status_code != 201:
+        if resp.status_code != 200:
             return redirect(login_failed_url)
         cookies_to_set = resp.cookies.get_dict()
         response_obj = make_response(redirect('http://127.0.0.1:3000/'))
