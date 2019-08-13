@@ -1,4 +1,5 @@
 """Authentication view"""
+import datetime
 from flask import Blueprint, jsonify, make_response, request, session
 from flask_restful import HTTPException, Resource
 from marshmallow import fields, ValidationError
@@ -8,11 +9,12 @@ from flask_jwt_extended import create_access_token, decode_token
 from webargs.flaskparser import parser
 from users_service import API, APP, BCRYPT
 from users_service.db import DB
-from users_service.models.users import User
+from users_service.models.users import Role, User
 from users_service.serializers.user_schema import UserSchema
 
 AUTH_BLUEPRINT = Blueprint('users', __name__)
 USER_SCHEMA = UserSchema(strict=True)
+CREATE_USER_SCHEMA = UserSchema(strict=True, exclude=['role'])
 USER_SCHEMA_NO_PASSWD = UserSchema(strict=True, exclude=['password'])
 USERS_SCHEMA = UserSchema(strict=True, many=True, exclude=['password'])
 
@@ -25,7 +27,7 @@ class RegisterResource(Resource):
     def post(self):
         """Post method"""
         try:
-            new_user = USER_SCHEMA.load(request.json).data
+            new_user = CREATE_USER_SCHEMA.load(request.json).data
         except ValidationError as err:
             APP.logger.error(err.args)
             return jsonify(err.messages), status.HTTP_400_BAD_REQUEST
@@ -73,7 +75,7 @@ class LoginResource(Resource):
     def post(self):
         """Post method"""
         try:
-            user_data = USER_SCHEMA.load(request.json).data
+            user_data = CREATE_USER_SCHEMA.load(request.json).data
         except ValidationError as err:
             APP.logger.exception(err.args)
             return jsonify(err.messages), status.HTTP_400_BAD_REQUEST
@@ -131,7 +133,12 @@ class ProfileResource(Resource):
         user_id = user_info['identity']
         user = User.query.get(user_id)
         response_obj = USER_SCHEMA_NO_PASSWD.dump(user).data
-        return make_response(jsonify(response_obj), status.HTTP_200_OK)
+        resp = make_response(jsonify(response_obj), status.HTTP_200_OK)
+        if user.password:
+            resp.set_cookie('has_passwd', str(True))
+        else:
+            resp.set_cookie('has_passwd', str(False))
+        return resp
 
     def put(self):
         """Put method"""
@@ -153,6 +160,7 @@ class ProfileResource(Resource):
             ).decode()
         else:
             user.google_id = request.json.get('google_id')
+        user.update_date = datetime.datetime.now()
         try:
             DB.session.commit()
         except IntegrityError as err:
@@ -235,10 +243,10 @@ class UsersResource(Resource):
         admin = request.cookies.get('admin')
         if admin:
             user_email = request.json.get("email")
-            print(user_email)
             user = User.query.filter_by(email=user_email).first()
             if user:
-                user.role_id = 2
+                user.role = Role.query.get(2)
+                user.update_date = datetime.datetime.now()
                 try:
                     DB.session.commit()
                 except IntegrityError as err:

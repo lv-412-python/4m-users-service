@@ -1,4 +1,5 @@
 """Reset password view"""
+import datetime
 from flask import Blueprint, request
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
@@ -69,6 +70,7 @@ class ResetPasswordResource(Resource):
         user.password = BCRYPT.generate_password_hash(
             password, APP.config.get('BCRYPT_LOG_ROUNDS')
         ).decode()
+        user.update_date = datetime.datetime.now()
         try:
             DB.session.commit()
         except IntegrityError as err:
